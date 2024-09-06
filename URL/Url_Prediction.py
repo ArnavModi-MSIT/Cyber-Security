@@ -30,8 +30,9 @@ with open('DATA/xgboost_phishing_model.pkl', 'rb') as model_file:
 with open('DATA/vectorizer.pkl', 'rb') as vectorizer_file:
     vectorizer = pickle.load(vectorizer_file)
 
-# New URLs for prediction
-new_urls = ['https://pathfinder.w3schools.com/', 'http://phishingsite.com']
+# Get user input for URLs
+user_input = input("Enter URLs (separate with commas): ")
+new_urls = [url.strip() for url in user_input.split(',')]
 
 # Preprocess and extract features for new URLs
 data = {
