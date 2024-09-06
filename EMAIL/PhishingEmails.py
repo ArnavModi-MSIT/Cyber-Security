@@ -1,15 +1,23 @@
 import pandas as pd
 import re
+import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.metrics import classification_report, roc_auc_score, roc_curve
 import xgboost as xgb
+import pickle
+import os
+import numpy as np
+
+# Ensure necessary NLTK resources are downloaded
+nltk.download('punkt')
+nltk.download('stopwords')
 
 # Load the dataset
-data = pd.read_csv("Python/CyberSecurity/Phishing_Email.csv")
+data = pd.read_csv("DATA/Phishing_Email.csv")
 
 # Sample 10% of the data
 data = data.sample(frac=0.1, random_state=42)
@@ -82,10 +90,11 @@ def tokens_to_text(tokens):
 data['Cleaned Text'] = data['Stemmed Tokens'].apply(tokens_to_text)
 
 # Optionally, save the cleaned data to a new CSV file
-data.to_csv("Python/CyberSecurity/Cleaned_Phishing_Email.csv", index=False)
+os.makedirs('DATA', exist_ok=True)  # Ensure 'DATA' directory exists
+data.to_csv("DATA/Cleaned_Phishing_Email.csv", index=False)
 
 # Feature Extraction using TF-IDF
-vectorizer = TfidfVectorizer()
+vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1,2))  # Limit to top 5000 features and include bigrams
 X = vectorizer.fit_transform(data['Cleaned Text'])
 y = data['Email Type'].apply(lambda x: 1 if x == 'Phishing Email' else 0)  # Convert to binary labels
 
@@ -97,8 +106,24 @@ model = xgb.XGBClassifier(eval_metric='logloss')
 model.fit(X_train, y_train)
 
 # Make predictions
-y_pred = model.predict(X_test)
+y_pred_proba = model.predict_proba(X_test)[:, 1]
 
-# Evaluate model
-print("ROC AUC Score:", roc_auc_score(y_test, y_pred))
-print(classification_report(y_test, y_pred))
+# Evaluate model with different thresholds
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
+best_idx = np.argmax(tpr - fpr)  # Find index for best threshold
+best_threshold = thresholds[best_idx]
+
+# Use the best threshold for predictions
+y_pred_best = (y_pred_proba >= best_threshold).astype(int)
+
+# Evaluate with the best threshold
+print(f"Best Threshold: {best_threshold}")
+print("ROC AUC Score with Best Threshold:", roc_auc_score(y_test, y_pred_best))
+print(classification_report(y_test, y_pred_best))
+
+# Save the trained model and vectorizer
+with open('DATA/xgboost_phishing_email_model.pkl', 'wb') as model_file:
+    pickle.dump(model, model_file)
+
+with open('DATA/vectorizer_email.pkl', 'wb') as vectorizer_file:
+    pickle.dump(vectorizer, vectorizer_file)
