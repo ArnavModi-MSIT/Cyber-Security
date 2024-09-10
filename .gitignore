@@ -1,6 +1,7 @@
-/Cleaned_Phishing_Email.csv
-/cleaned_phishing_urls.csv
-/Phishing_Email.csv
-/phishing_site_urls.csv
-/xgboost_phishing_model.pkl
 /DATA
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
